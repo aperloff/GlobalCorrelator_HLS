@@ -17,6 +17,16 @@ namespace dpf2fw {
         out.hwZ0 = in.hwZ0;
         out.hwTightQuality = (in.hwStubs >= 6 && in.hwChi2 < 500);
     }
+    void convert(const l1tpf_int::PropagatedTrack & in, TkObjExtended &out) {
+        out.hwPt = in.hwPt;
+        out.hwPtErr = in.hwCaloPtErr;
+        out.hwEta = in.hwEta; // @calo
+        out.hwPhi = in.hwPhi; // @calo
+        out.hwZ0 = in.hwZ0;
+        out.hwTightQuality = (in.hwStubs >= 6 && in.hwChi2 < 500);
+        out.hwStubs = in.hwStubs;
+        out.hwChi2 = in.hwChi2;
+    }
     void convert(const l1tpf_int::CaloCluster & in, HadCaloObj & out) {
         out.hwPt = in.hwPt;
         out.hwEmPt = in.hwEmPt;

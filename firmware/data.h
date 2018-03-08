@@ -8,6 +8,8 @@ typedef ap_int<10>  etaphi_t;
 typedef ap_int<5>  vtx_t;
 typedef ap_uint<3>  particleid_t;
 typedef ap_int<10> z0_t;  // 40cm / 0.1
+typedef ap_uint<5> tkstub_t;
+typedef ap_uint<16> tkpar_t;
 		
 enum PID { PID_Charged=0, PID_Neutral=1, PID_Photon=2, PID_Electron=3, PID_Muon=4 };
 
@@ -74,6 +76,14 @@ struct TkObj {
 };
 inline void clear(TkObj & c) {
     c.hwPt = 0; c.hwPtErr = 0; c.hwEta = 0; c.hwPhi = 0; c.hwZ0 = 0; c.hwTightQuality = 0;
+}
+
+struct TkObjExtended: TkObj {
+	tkstub_t hwStubs;
+	tkpar_t hwChi2;
+};
+inline void clear(TkObjExtended & c) {
+    c.hwPt = 0; c.hwPtErr = 0; c.hwEta = 0; c.hwPhi = 0; c.hwZ0 = 0; c.hwTightQuality = 0; c.hwStubs = 0; c.hwChi2 = 0;
 }
 
 struct MuObj {
