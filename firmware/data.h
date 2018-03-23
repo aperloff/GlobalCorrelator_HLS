@@ -2,6 +2,7 @@
 #define SIMPLE_PFLOW_DATA_H
 
 #include "ap_int.h"
+#include "ap_fixed.h"
 
 typedef ap_int<16> pt_t;
 typedef ap_int<10>  etaphi_t;

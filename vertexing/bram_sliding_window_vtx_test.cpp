@@ -75,10 +75,13 @@ int main() {
 
         twoptsums_t hists[BHV_NSECTORS][BHV_NHALFBINS];
         ptsum_t hist[BHV_NBINS];
+        for (unsigned int b = 0; b < BHV_NBINS; ++b) hist[b] = 0;
         for (int is = 0; is < BHV_NSECTORS; ++is) {
-             for (unsigned int b = 0; b < BHV_NBINS; ++b) hist[b] = 0;
              for (unsigned int it = 0; it < BHV_NTRACKS; ++it) {
-                bhv_add_track(fetch_bin_ref(track_in[is][it].hwZ0), track_in[is][it].hwPt, hist);
+                if (track_quality_check_ref(track_in[is][it])) {
+                    //if(fetch_bin_ref(track_in[is][it].hwZ0).bin==37) std::cout<<"is="<<is<<std::endl;
+                    bhv_add_track(fetch_bin_ref(track_in[is][it].hwZ0), track_in[is][it].hwPt, hist);
+                }
                 if (it == 17 && is == 0) {
                     ptsum_t max = 0; zbin_t bmax = BHV_NBINS;
                     for (unsigned int b = 0; b < BHV_NBINS; b += 2) {
@@ -91,10 +94,12 @@ int main() {
              }
         }
 
+        //show<ptsum_t,BHV_NBINS>(hist);
         pt_t ptsum_hw;
+        z0_t pv_hw;
         //zbin_t pvbin_hw = bhv_find_pv(hists, &ptsum_hw);
-        zbin_t pvbin_hw = bhv_find_pv(hist, &ptsum_hw);
-        z0_t pv_hw = bin_center_ref(pvbin_hw);
+        zbin_t pvbin_hw = bhv_find_pv(hist, &ptsum_hw, &pv_hw);
+        //z0_t pv_hw = bin_center_ref(pvbin_hw);
         for (unsigned int i = 0; i < MP7_NCHANN; ++i) mp7_out[i] = 0; 
         for (unsigned int ic = 0; ic < N_CLOCKS; ++ic) {
             bool done = (ic == 0);

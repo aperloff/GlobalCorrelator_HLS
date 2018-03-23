@@ -19,6 +19,7 @@ void bhv_find_pv_ref(TkObjExtended tracks[BHV_NSECTORS][BHV_NTRACKS], zbin_t & p
                 if (bin.valid) {
                     int newsum = int(histos[is][bin.bin]) + tkpt;
                     histos[is][bin.bin] = ptsum_t(newsum > BHV_MAXBIN ? BHV_MAXBIN : newsum);
+                    //if(bin.bin==37) std::cout<<"bhv_find_pv_ref::is="<<is<<"\tcurrent track pT=" << tkpt << "\tcurrent sum=" <<histos[is][bin.bin] << std::endl;
                 }
             }
         }
@@ -36,24 +37,18 @@ void bhv_find_pv_ref(TkObjExtended tracks[BHV_NSECTORS][BHV_NTRACKS], zbin_t & p
             }
             sigma += binpt[w];
         }
-        //std::cout << "binpt[w] (bin " << b << ") = {" << std::flush;
-        //for (unsigned int w = 0; w < BHV_WINDOWSIZE;  ++w) {
-        //    std::cout << binpt[w] << "," << std::flush;
-        //}
-        //std::cout << "}" << std::endl;
+        //std::cout << "bin = " << b << std::endl;
+        //show<ptsum_t,BHV_WINDOWSIZE>(binpt);
         if ( sigma > sigma_max) {
             sigma_max = sigma;
             zvtx_sliding = weighted_position_ref(b,binpt,sigma);
-            // for (unsigned int w = 0; w < BHV_WINDOWSIZE;  ++w) {
-            //     zvtx_sliding += (binpt[w]*bin_center_ref(b+w));
-            // }
-            // zvtx_sliding /= sigma;
-            ibest = b+(BHV_WINDOWSIZE >> 1);
+            //vivado_hls is smart enough to inline this function right here
+            //That is why we can split off this simple line of code
+            bin_plus_half_window_ref<int,int>(b,ibest);
             sbest = sigma;
         }
     }
     pvbin = ibest;
     pvsum = sbest;
-    //std::cout << "bhv_find_pv_ref::zvtx_sliding = " << zvtx_sliding << std::endl;
     pv = zvtx_sliding;
 }

@@ -8,7 +8,7 @@
 open_project -reset proj_bswv
 #set_top bhv_add_track
 set_top bhv_find_pv
-add_files firmware/bram_sliding_window_vtx.cpp
+add_files firmware/bram_sliding_window_vtx.cpp -cflags "-std=c++0x"
 add_files -tb bram_sliding_window_vtx_ref.cpp -cflags "-std=c++0x"
 add_files -tb bram_sliding_window_vtx_test.cpp  -cflags "-std=c++0x"
 add_files -tb ../utils/DiscretePFInputs_IO.h -cflags "-std=c++0x"
@@ -24,9 +24,11 @@ open_solution -reset "solution_sliding_debug"
 set_part {xcku115-flvf1924-2-i}
 create_clock -period 5 -name default
 
+config_core DSP48 -latency 2
+
 # do stuff
 csim_design
-#csynth_design
+csynth_design
 #cosim_design -trace_level all
 #export_design -format ip_catalog
 
