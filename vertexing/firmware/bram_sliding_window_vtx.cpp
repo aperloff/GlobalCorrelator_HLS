@@ -13,7 +13,7 @@ void bhv_add_track(zbin_vt zbin, pt_t tkpt, ptsum_t hist[BHV_NBINS]) {
         pt_t pt = (tkpt >> 1);
         if (pt > BHV_MAXPT) pt = BHV_MAXPT;
         int sum = int(hist[zbin.bin])+pt;
-        hist[zbin.bin] = sum;//(sum & (BHV_MAXBIN+1)) ? BHV_MAXBIN : sum;
+        hist[zbin.bin] = (sum & (BHV_MAXBIN+1)) ? BHV_MAXBIN : sum;
     }
 }
 
@@ -22,13 +22,12 @@ void bhv_add_track(zbin_vt zbin, pt_t tkpt, ptsum_t hist[BHV_NBINS]) {
 void bhv_find_pv(ptsum_t hist[BHV_NBINS], zbin_t *pvbin_hw, z0_t *pv_hw, pt_t *sumpt) {
     #pragma HLS pipeline II=1
 
-    /*
-    ptsum_t hist[BHV_NBINS] = {0};
+
+    //ptsum_t hist[BHV_NBINS] = {0};
     //for (unsigned int b = 0; b < BHV_NBINS; ++b) {
     //    #pragma HLS unroll
     //    hist[b] = 0;
     //}
-    */
 
     //Without the following pragma the interface pragma will work
     //Only really makes sense if unrolling or using multidimensional array
