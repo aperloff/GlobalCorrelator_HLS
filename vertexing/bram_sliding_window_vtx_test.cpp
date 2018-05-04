@@ -1,8 +1,6 @@
-
 #include <cstdio>
 #include "firmware/bram_sliding_window_vtx.h"
 #include "../utils/DiscretePFInputs_IO.h"
-#include "../firmware/mp7pf_encoding.h"
 #include "../utils/pattern_serializer.h"
 #define NTEST 250
 
@@ -13,8 +11,6 @@ int main() {
     TkObjExtended track_in[BHV_NSECTORS][BHV_NTRACKS], track_tmp[2*BHV_NTRACKS];
 
     TkObjExtended track_in_transposed[BHV_NTRACKS][BHV_NSECTORS];
-    MP7DataWord mp7_in[MP7_NCHANN];
-    MP7DataWord mp7_out[MP7_NCHANN];
 
     unsigned int ngood = 0, ntot = 0, ncmssw_good = 0, nagree = 0, nerr = 0;
     double resol = 0;
@@ -24,10 +20,6 @@ int main() {
     FILE *test_in  = fopen("bhv_dump_in.txt","w");
     FILE *test_out = fopen("bhv_dump_out.txt","w");
     unsigned int test_in_frame = 0, test_out_frame = 0;
-    MP7PatternSerializer serMP7_in("mp7_input.txt",2,1);  
-    MP7PatternSerializer serMP7_in_debug("mp7_input_debug.txt",1,0);  
-    MP7PatternSerializer serMP7_out("mp7_output.txt",1,0,3); 
-    MP7PatternSerializer serMP7_out_debug("mp7_output_debug.txt",1,0); 
 
     for (int test = 1; test <= NTEST; ++test) {
         // read the event
@@ -48,38 +40,29 @@ int main() {
         z0_t   pv_ref = 0;
         int    ptsum_ref = 0;
 
-        bhv_find_pv_ref(track_in, pvbin_ref, pv_ref, ptsum_ref);
+        REF_FUNC(track_in, pvbin_ref, pv_ref, ptsum_ref);
 
+
+        //
+        // Make MP7 input file
+        //
         for (unsigned int it = 0; it < 18; ++it) {
             for (int go = 1; go >= 0; --go) {
                 fprintf(test_in,"Frame %4d : %1d  %3d  %6d\n", test_in_frame++, go, int(fetch_bin_ref(track_in[0][it].hwZ0).bin), int(track_in[0][it].hwPt>>1));
             }
         }
-        for (int is = 0; is < BHV_NSECTORS; ++is) { 
-            for (int io = 0; io < BHV_NTRACKS; ++io) track_in_transposed[io][is] = track_in[is][io];
-        } 
-        for (unsigned int ic = 0; ic < N_CLOCKS/2; ++ic) {
-            for (unsigned int i = 0; i < MP7_NCHANN; ++i) mp7_in[i] = 0; // clear
-            if (ic < BHV_NTRACKS) mp7_pack<BHV_NSECTORS,0>(track_in_transposed[ic], mp7_in);
-            serMP7_in(mp7_in);  
-        } 
-        for (unsigned int ic = 0; ic < N_CLOCKS; ++ic) {
-            for (unsigned int i = 0; i < MP7_NCHANN; ++i) mp7_in[i] = 0; // clear
-            for (int is = 0; is < BHV_NSECTORS; ++is) {
-                zbin_vt bin = fetch_bin_ref(track_in[is][ic/2].hwZ0);
-                mp7_in[2*is+0] = bin.bin + (0x10000000 * bin.valid);
-                mp7_in[2*is+1] = track_in[is][ic/2].hwPt >> 1;
-            } 
-            serMP7_in_debug(mp7_in);  
-        }
 
-        twoptsums_t hists[BHV_NSECTORS][BHV_NHALFBINS];
+        //
+        // Make MP7 output file
+        //
         ptsum_t hist[BHV_NBINS];
         for (unsigned int b = 0; b < BHV_NBINS; ++b) hist[b] = 0;
         for (int is = 0; is < BHV_NSECTORS; ++is) {
-             for (unsigned int it = 0; it < BHV_NTRACKS; ++it) {
-                if (track_quality_check_ref(track_in[is][it])) {
-                    //if(fetch_bin_ref(track_in[is][it].hwZ0).bin==37) std::cout<<"is="<<is<<std::endl;
+            for (unsigned int it = 0; it < BHV_NTRACKS; ++it) {
+                if (QUALITY && track_quality_check_ref(track_in[is][it])) {
+                    bhv_add_track(fetch_bin_ref(track_in[is][it].hwZ0), track_in[is][it].hwPt, hist);
+                }
+                else if(!QUALITY) {
                     bhv_add_track(fetch_bin_ref(track_in[is][it].hwZ0), track_in[is][it].hwPt, hist);
                 }
                 if (it == 17 && is == 0) {
@@ -88,46 +71,28 @@ int main() {
                        fprintf(test_out,"Frame %4d : %3d   %6d   %6d\n", test_out_frame++, int(b), int(hist[b]), int(hist[b+1]));
                     }
                 }
-             }
-             for (unsigned int b = 0, tb = 0; b < BHV_NBINS; b += 2, ++tb) {
-                hists[is][tb] = ( hist[b], hist[b+1] );
-             }
+            }
         }
 
-        //show<ptsum_t,BHV_NBINS>(hist);
         pt_t ptsum_hw;
         z0_t pv_hw;
-        //zbin_t pvbin_hw = bhv_find_pv(hists, &ptsum_hw);
-        zbin_t pvbin_hw = bhv_find_pv(hist, &ptsum_hw, &pv_hw);
-        //z0_t pv_hw = bin_center_ref(pvbin_hw);
-        for (unsigned int i = 0; i < MP7_NCHANN; ++i) mp7_out[i] = 0; 
-        for (unsigned int ic = 0; ic < N_CLOCKS; ++ic) {
-            bool done = (ic == 0);
-            mp7_out[0] = done ? 1 : 0;
-            mp7_out[1] = done ? ptsum_hw : pt_t(0);
-            mp7_out[2] = done ? pvbin_hw : zbin_t(0);
-            serMP7_out(mp7_out);
-        }
-        assert(N_CLOCKS == BHV_NHALFBINS);
-        for (unsigned int i = 0; i < MP7_NCHANN; ++i) mp7_out[i] = 0; 
-        for (unsigned int ic = 0; ic < N_CLOCKS; ++ic) {
-            for (unsigned int is = 0, i = 3; is < BHV_NSECTORS; ++is, i += 2) {
-                mp7_out[i+0] = 0x10000 * (ic == 0) + (ic<<1) + ((test % 2) << 24);
-                mp7_out[i+1] = (int(hists[is][ic](8,0)) << 16) | int(hists[is][ic](17,9));
-            }
-            serMP7_out_debug(mp7_out);
-        }
+        zbin_t pvbin_hw;
+        TOP_FUNC(hist, &pvbin_hw, &pv_hw, &ptsum_hw);
         
-        printf("GEN PV %+4d    CMSSW PV %+4d  bin %3d :  REF %+4d  bin %3d, ptsum %8d, diff %+4d :  HW %+4d  bin %3d, ptsum %8d diff %+4d  :  MATCH %+1d\n",
-               int(pv_gen), int(pv_cmssw), int(fetch_bin_ref(pv_cmssw).bin), int(pv_ref), int(pvbin_ref), ptsum_ref, int(pv_ref-pv_gen),
-               int(pv_hw), int(pvbin_hw), int(ptsum_hw), int(pv_hw-pv_gen), int(pv_hw-pv_ref));
+        #ifdef TESTBOARD
+            if (!VALIDATE) continue;
+        #endif
+
+        bool match_gen = abs(int(pv_ref-pv_gen)) <= 10;
         if (abs(int(pv_ref-pv_gen)) <= 10) { ngood++; resol += std::pow(double(pv_gen - pv_ref), 2); }
         ntot++;
         if (abs(int(pv_gen-pv_cmssw)) <= 10) { ncmssw_good++; cmssw_resol += std::pow(double(pv_gen - pv_cmssw), 2); }
 
         if (abs(int(pv_ref-pv_cmssw)) <= 10) nagree++;
-        if (pv_ref != pv_hw || ptsum_hw != ptsum_ref) nerr++;
-        
+        printf("%sGEN PV %+4d    CMSSW PV %+4d  bin %3d :  REF %+4d  bin %3d, ptsum %8d, diff %+4d :  HW %+4d  bin %3d, ptsum %8d diff %+4d  :  MATCH %+1d%s\n",
+               (!match_gen)?"\e[1;31m":"", int(pv_gen), int(pv_cmssw), int(fetch_bin_ref(pv_cmssw).bin), int(pv_ref), int(pvbin_ref), ptsum_ref, int(pv_ref-pv_gen),
+               int(pv_hw), int(pvbin_hw), int(ptsum_hw), int(pv_hw-pv_gen), int(pv_hw-pv_ref),(!match_gen)?"\e[0m":"");
+        if (pv_ref != pv_hw || ptsum_hw != ptsum_ref) { nerr++; printf("ERROR!!!\n"); }
     }
 
     fclose(test_in);
