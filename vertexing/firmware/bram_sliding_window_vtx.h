@@ -90,7 +90,6 @@ typedef ap_fixed<AP_FIXED_SIZE,AP_FIXED_DEC,AP_RND,AP_SAT> zsliding_t;
 ///////////////////////
 // -- DEFINE STATEMENTS
 #define BHV_MAXPT 100
-//#define BHV_MAXBIN 511
 #define BHV_MAXBIN 511
 #define BHV_CHI2MAX 100
 #define BHV_PTMINTRA 2
@@ -161,46 +160,6 @@ void inversion(data_T &data_den, res_T &res) {
     }
     inversion<data_T, res_T, N_TABLE_SIZE>(data_den, res); 
     return;
-}
-
-///////////////////////////
-// -- TRACK_QUALITY_CHECK_REF FUNCTION
-//    Returns true if a track passes the quality requirements
-//     and false otherwise
-inline bool track_quality_check_ref(TkObjExtended track) {
-    // track quality cuts
-    //if (fabs(z) > ZMAX ) continue; //ZMAX=25.
-    if (track.hwChi2 > BHV_CHI2MAX) return false;
-    if (track.hwPt < BHV_PTMINTRA) return false;
-    if (track.hwStubs < BHV_NSTUBSMIN) return false;
-    //if (nPS < nStubsPSmin) return false; //nStubsPSmin=3
-
-    // quality cuts from Louise S, based on the pt-stub compatibility (June 20, 2014)
-    //int trk_nstub  = (int) trackIter ->getStubRefs().size();
-    //float chi2dof = chi2 / ((trk_nstub<<1)-4);
-    //if(doPtComp)
-    //float trk_consistency = trackIter ->getStubPtConsistency();
-    //if (trk_nstub == 4) {
-    //   if (fabs(eta)<2.2 && trk_consistency>10) return false;
-    //   else if (fabs(eta)>2.2 && chi2dof>5.0) return false;
-    //}
-    //if(doTightChi2)
-    //if (pt>10.0 && chi2dof>5.0) return false;
-
-    return true;
-}
-
-///////////////////////////
-// -- FETCH_BIN_REF FUNCTION
-inline zbin_vt fetch_bin_ref(z0_t z0) {
-    int zbin = (z0 >> BNV_SHIFT) + BHV_NHALFBINS; 
-    bool valid = true;
-    if (zbin < 0) { zbin = 0; valid = false; }
-    if (zbin > BHV_NBINS-1) { zbin = 0; valid = false; }
-    zbin_vt ret;
-    ret.bin = zbin;
-    ret.valid = valid;
-    return ret;
 }
 
 ///////////////////////////
@@ -311,8 +270,82 @@ inline ret_t bhv_access_array(ret_t array[], bin_t i, bin_t j) {
     return array[i+j];
 }
 
+///////////////////////////
+// -- TRACK_QUALITY_CHECK_REF FUNCTION
+//    Returns true if a track passes the quality requirements
+//     and false otherwise
+inline bool track_quality_check_ref(TkObjExtended track) {
+    // track quality cuts
+    //if (fabs(z) > ZMAX ) continue; //ZMAX=25.
+    if (track.hwChi2 > BHV_CHI2MAX) return false;
+    if (track.hwPt < BHV_PTMINTRA) return false;
+    if (track.hwStubs < BHV_NSTUBSMIN) return false;
+    //if (nPS < nStubsPSmin) return false; //nStubsPSmin=3
+
+    // quality cuts from Louise S, based on the pt-stub compatibility (June 20, 2014)
+    //int trk_nstub  = (int) trackIter ->getStubRefs().size();
+    //float chi2dof = chi2 / ((trk_nstub<<1)-4);
+    //if(doPtComp)
+    //float trk_consistency = trackIter ->getStubPtConsistency();
+    //if (trk_nstub == 4) {
+    //   if (fabs(eta)<2.2 && trk_consistency>10) return false;
+    //   else if (fabs(eta)>2.2 && chi2dof>5.0) return false;
+    //}
+    //if(doTightChi2)
+    //if (pt>10.0 && chi2dof>5.0) return false;
+
+    return true;
+}
+
+///////////////////////////
+// -- FETCH_BIN_REF FUNCTION
+inline zbin_vt fetch_bin_ref(z0_t z0) {
+    int zbin = (z0 >> BNV_SHIFT) + BHV_NHALFBINS; 
+    bool valid = true;
+    if (zbin < 0) { zbin = 0; valid = false; }
+    if (zbin > BHV_NBINS-1) { zbin = 0; valid = false; }
+    zbin_vt ret;
+    ret.bin = zbin;
+    ret.valid = valid;
+    return ret;
+}
+
+///////////////////////////
+// -- BHV_ADD_TRACK FUNCTION
+inline void bhv_add_track(zbin_vt zbin, pt_t tkpt, ptsum_t hist[BHV_NBINS]) {
+    #pragma HLS pipeline II=2
+    #pragma HLS interface ap_memory port=hist
+    #pragma HLS resource  variable=hist core=ram_1p
+    if (zbin.valid) {
+        pt_t pt = (tkpt >> 1);
+        if (pt > BHV_MAXPT) pt = BHV_MAXPT;
+        int sum = int(hist[zbin.bin])+pt;
+        hist[zbin.bin] = (sum > (BHV_MAXBIN+1)) ? BHV_MAXBIN : sum;
+    }
+}
+
+//////////////////////////////////
+// -- BHV_MERGE_SECTORS_AND_TRACKS
+//    Merge the tracks from each sector and make a 1D histogram
+//     of the pT of each bin in z.
+inline void bhv_merge_sectors_and_tracks(TkObjExtended tracks[BHV_NSECTORS][BHV_NTRACKS], ptsum_t hist[BHV_NBINS], bool quality) {
+    #pragma HLS ARRAY_PARTITION variable=tracks complete
+    SECTORLOOP: for (int is = 0; is < BHV_NSECTORS; ++is) {
+        #pragma HLS UNROLL
+        TRACKLOOP: for (unsigned int it = 0; it < BHV_NTRACKS; ++it) {
+            #pragma HLS UNROLL
+            if ((quality && track_quality_check_ref(tracks[is][it])) || (!quality)) {
+                bhv_add_track(fetch_bin_ref(tracks[is][it].hwZ0), tracks[is][it].hwPt, hist);
+                //if (int(fetch_bin_ref(tracks[is][it].hwZ0).bin)==45 &&tracks[is][it].hwPt > 0) {
+                //    std::cout << "HW: bin=" << int(fetch_bin_ref(tracks[is][it].hwZ0).bin) << " track=" << it << " pt=" << (tracks[is][it].hwPt>>1) << " cum_sum=" << hist[fetch_bin_ref(tracks[is][it].hwZ0).bin] << std::endl;
+                //}
+            }
+        }
+    }
+}
+
 ///////////////////////////////
-// -- BIN_COMPUTE_SUMS FUNCTION
+// -- BHV_COMPUTE_SUMS FUNCTION
 //    Computes the sum of the bins within a window and places those
 //     sums in a second array.
 //    The array of computed sums is returned by reference.
@@ -422,7 +455,7 @@ inline void bhv_parallel_find_max(value_t input_array[SIZE], index_t &b_max, val
 
 ///////////////////////////
 // -- FORWARD DECLARED FUNCTIONS
-void bhv_add_track(zbin_vt zbin, pt_t tkpt, ptsum_t hist[BHV_NBINS]) ;
+//void bhv_add_track(zbin_vt zbin, pt_t tkpt, ptsum_t hist[BHV_NBINS]) ;
 void bhv_find_pv(ptsum_t hist[BHV_NBINS], zbin_t *pvbin_hw, z0_t *pv_hw, pt_t *sumpt);
-void bhv_find_pv_ref(TkObjExtended tracks[BHV_NSECTORS][BHV_NTRACKS], zbin_t & pvbin, z0_t & pv, int &pvsum) ;
-//bool dummy(z0_t z0) ;
+//void bhv_find_pv(TkObjExtended tracks[BHV_NSECTORS][BHV_NTRACKS], zbin_t *pvbin_hw, z0_t *pv_hw, pt_t *sumpt);
+void bhv_find_pv_ref(TkObjExtended tracks[BHV_NSECTORS][BHV_NTRACKS], zbin_t & pvbin, z0_t & pv, int &pvsum);

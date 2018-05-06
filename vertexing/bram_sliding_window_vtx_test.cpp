@@ -9,8 +9,7 @@ int main() {
     //DiscretePFInputs inputs("barrel_sectors_1x12_TTbar_PU140.dump");
 
     TkObjExtended track_in[BHV_NSECTORS][BHV_NTRACKS], track_tmp[2*BHV_NTRACKS];
-
-    TkObjExtended track_in_transposed[BHV_NTRACKS][BHV_NSECTORS];
+    //TkObj track_in[BHV_NSECTORS][BHV_NTRACKS], track_tmp[2*BHV_NTRACKS];
 
     unsigned int ngood = 0, ntot = 0, ncmssw_good = 0, nagree = 0, nerr = 0;
     double resol = 0;
@@ -59,10 +58,7 @@ int main() {
         for (unsigned int b = 0; b < BHV_NBINS; ++b) hist[b] = 0;
         for (int is = 0; is < BHV_NSECTORS; ++is) {
             for (unsigned int it = 0; it < BHV_NTRACKS; ++it) {
-                if (QUALITY && track_quality_check_ref(track_in[is][it])) {
-                    bhv_add_track(fetch_bin_ref(track_in[is][it].hwZ0), track_in[is][it].hwPt, hist);
-                }
-                else if(!QUALITY) {
+                if ((QUALITY && track_quality_check_ref(track_in[is][it])) || (!QUALITY)) {
                     bhv_add_track(fetch_bin_ref(track_in[is][it].hwZ0), track_in[is][it].hwPt, hist);
                 }
                 if (it == 17 && is == 0) {
@@ -77,6 +73,7 @@ int main() {
         pt_t ptsum_hw;
         z0_t pv_hw;
         zbin_t pvbin_hw;
+        //TOP_FUNC(track_in, &pvbin_hw, &pv_hw, &ptsum_hw);
         TOP_FUNC(hist, &pvbin_hw, &pv_hw, &ptsum_hw);
         
         #ifdef TESTBOARD

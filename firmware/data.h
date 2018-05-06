@@ -79,10 +79,18 @@ inline void clear(TkObj & c) {
     c.hwPt = 0; c.hwPtErr = 0; c.hwEta = 0; c.hwPhi = 0; c.hwZ0 = 0; c.hwTightQuality = 0;
 }
 
-struct TkObjExtended: TkObj {
+struct TkObjExtended : public TkObj {
 	tkstub_t hwStubs;
 	tkpar_t hwChi2;
 };
+// struct TkObjExtended {
+// 	pt_t hwPt, hwPtErr;
+// 	etaphi_t hwEta, hwPhi; // relative to the region center, at calo
+// 	z0_t hwZ0;
+// 	bool hwTightQuality;
+// 	tkstub_t hwStubs;
+// 	tkpar_t hwChi2;
+// };
 inline void clear(TkObjExtended & c) {
     c.hwPt = 0; c.hwPtErr = 0; c.hwEta = 0; c.hwPhi = 0; c.hwZ0 = 0; c.hwTightQuality = 0; c.hwStubs = 0; c.hwChi2 = 0;
 }

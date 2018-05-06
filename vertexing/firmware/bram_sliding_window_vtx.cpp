@@ -4,30 +4,20 @@
 #endif
 
 ///////////////////////////
-// -- BHV_ADD_TRACK FUNCTION
-void bhv_add_track(zbin_vt zbin, pt_t tkpt, ptsum_t hist[BHV_NBINS]) {
-    #pragma HLS pipeline II=2
-    #pragma HLS interface ap_memory port=hist
-    #pragma HLS resource  variable=hist core=ram_1p
-    if (zbin.valid) {
-        pt_t pt = (tkpt >> 1);
-        if (pt > BHV_MAXPT) pt = BHV_MAXPT;
-        int sum = int(hist[zbin.bin])+pt;
-        hist[zbin.bin] = (sum & (BHV_MAXBIN+1)) ? BHV_MAXBIN : sum;
-    }
-}
-
-///////////////////////////
 // -- BHV_FIND_PV FUNCTION
 void bhv_find_pv(ptsum_t hist[BHV_NBINS], zbin_t *pvbin_hw, z0_t *pv_hw, pt_t *sumpt) {
+//void bhv_find_pv(TkObjExtended tracks[BHV_NSECTORS][BHV_NTRACKS], zbin_t *pvbin_hw, z0_t *pv_hw, pt_t *sumpt) {
     #pragma HLS pipeline II=1
 
-
-    //ptsum_t hist[BHV_NBINS] = {0};
-    //for (unsigned int b = 0; b < BHV_NBINS; ++b) {
-    //    #pragma HLS unroll
-    //    hist[b] = 0;
-    //}
+    /*
+    #pragma HLS array_partition variable=tracks complete
+    ptsum_t hist[BHV_NBINS];
+    for (unsigned int b = 0; b < BHV_NBINS; ++b) {
+        #pragma HLS unroll
+        hist[b] = 0;
+    }
+    bhv_merge_sectors_and_tracks(tracks, hist, QUALITY);
+    */
 
     //Without the following pragma the interface pragma will work
     //Only really makes sense if unrolling or using multidimensional array
@@ -49,11 +39,11 @@ void bhv_find_pv(ptsum_t hist[BHV_NBINS], zbin_t *pvbin_hw, z0_t *pv_hw, pt_t *s
     slidingsum_t hist_window_sums[BHV_NSUMS];
     #pragma HLS array_partition variable=hist_window_sums complete dim=1
     INITIALIZELOOP: for (unsigned int b = 0; b < BHV_NBINS-BHV_WINDOWSIZE+1; ++b) {
-       hist_window_sums[b] = 0;
+        hist_window_sums[b] = 0;
     }
 
     #if (defined(__GXX_EXPERIMENTAL_CXX0X__) and defined(CMSSW))
-        show<ptsum_t,BHV_NBINS>(hist);
+        show<ptsum_t,BHV_NBINS>(hist,80,0,-1,std::cout,"","\e[92m");
     #endif
     bhv_compute_sums(hist,hist_window_sums);
 

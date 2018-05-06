@@ -5,10 +5,10 @@ source config_hls_sliding_window_vtx.tcl
 open_project -reset proj_bswv
 #set_top bhv_add_track
 set_top ${l1vtxTopFunc}
-add_files firmware/bram_sliding_window_vtx.cpp -cflags "-DTESTBOARD -std=c++0x"
+add_files firmware/bram_sliding_window_vtx.cpp -cflags "-DTESTBOARD -std=c++0x -DQUALITY=${l1tkQualityCuts}"
 # -DCMSSW
 add_files -tb bram_sliding_window_vtx_test.cpp  -cflags "-DTESTBOARD -std=c++0x -DTOP_FUNC=${l1vtxTopFunc} -DREF_FUNC=${l1vtxRefFunc} -DVALIDATE=${l1vtxValidate} -DQUALITY=${l1tkQualityCuts}"
-add_files -tb bram_sliding_window_vtx_ref.cpp -cflags "-DTESTBOARD -std=c++0x"
+add_files -tb bram_sliding_window_vtx_ref.cpp -cflags "-DTESTBOARD -std=c++0x -DQUALITY=${l1tkQualityCuts}"
 add_files -tb ../utils/pattern_serializer.cpp -cflags "-DTESTBOARD"
 add_files -tb ../utils/DiscretePFInputs_IO.h -cflags "-DTESTBOARD -std=c++0x"
 add_files -tb ../regionizer/data/barrel_sectors_1x12_TTbar_PU140.dump
@@ -38,7 +38,7 @@ config_core DSP48 -latency 2
 
 # do stuff
 csim_design
-#csynth_design
+csynth_design
 #cosim_design -trace_level all
 #export_design -format ip_catalog -vendor "cern-cms" -version ${l1vtxIPVersion} -description "${l1vtxTopFunc}"
 
