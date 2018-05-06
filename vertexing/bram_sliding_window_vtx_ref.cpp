@@ -15,7 +15,7 @@ void bhv_find_pv_ref(TkObjExtended tracks[BHV_NSECTORS][BHV_NTRACKS], zbin_t & p
         }
         for (unsigned int it = 0; it < BHV_NTRACKS; ++it) {
             pt_t tkpt = (tracks[is][it].hwPt >> 1);
-            //if (track_quality_check_ref(tracks[is][it])) {
+            if ((QUALITY && track_quality_check_ref(tracks[is][it])) || (!QUALITY)) {
                 //
                 // Saturation or truncation
                 //
@@ -36,12 +36,14 @@ void bhv_find_pv_ref(TkObjExtended tracks[BHV_NSECTORS][BHV_NTRACKS], zbin_t & p
                     int newsum = int(histos[is][bin.bin]) + tkpt;
                     histos[is][bin.bin] = ptsum_t(newsum > BHV_MAXBIN ? BHV_MAXBIN : newsum);
                     #if(DEBUG==3)
+                        if (tkpt>0 && (bin.bin==45))
+                            std::cout << "REF: bin=" << bin.bin << " tack=" << it << " pt=" << tkpt << std::endl;
                         if (bin.bin==37) {
                             std::cout<<"bhv_find_pv_ref::is="<<is<<"\tcurrent track pT=" << tkpt << "\tcurrent sum=" <<histos[is][bin.bin] << std::endl;
                         }
                     #endif
                 }
-            //}
+            }
         }
     }
 
@@ -61,8 +63,9 @@ void bhv_find_pv_ref(TkObjExtended tracks[BHV_NSECTORS][BHV_NTRACKS], zbin_t & p
         int sigma = 0;
         for (unsigned int w = 0; w < BHV_WINDOWSIZE;  ++w) {
             binpt[w] = 0;
-            for (unsigned int is = 0; is < BHV_NSECTORS; ++is) {    
-                binpt[w] += histos[is][b+w];
+            for (unsigned int is = 0; is < BHV_NSECTORS; ++is) {
+                if ((histos[is][b+w]+binpt[w])>BHV_MAXBIN) binpt[w] = BHV_MAXBIN;
+                else binpt[w] += histos[is][b+w];
             }
             sigma += binpt[w];
         }
