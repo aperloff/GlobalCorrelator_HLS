@@ -5,8 +5,13 @@
 #include <cmath>
 #include <vector>
 
+/*
+Possible Formatting Codes: https://misc.flogisoft.com/bash/tip_colors_and_formatting
+*/
+
 template<class data_type, int TABLE_SIZE>
-void show(data_type data[], int width=80, int minimum=0, int maximum=-1, std::ostream &stream=std::cout, std::string title="") {
+void show(data_type data[], int width=80, int minimum=0, int maximum=-1,
+          std::ostream &stream=std::cout, std::string title="", std::string color="") {
 	if (minimum < 0) {
 		minimum *= 1.05;
 	}
@@ -90,8 +95,10 @@ void show(data_type data[], int width=80, int minimum=0, int maximum=-1, std::os
     	out.push_back(buffer);
     }
     out.push_back(capstone);
+    if (!color.empty()) stream << color;
     for (auto o : out) {
     	stream << o << "\n";
     }
+	if (!color.empty()) stream << "\e[0m";
     stream << "\n";
 }
